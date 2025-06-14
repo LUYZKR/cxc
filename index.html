@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Cuentas por Cobrar</title>
+    <style>
+        /* Estilos Generales y Variables */
+        :root {
+            --bg-color: #f8f9fa;
+            --container-bg: #ffffff;
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --secondary-color: #6c757d;
+            --text-color: #343a40;
+            --border-color: #dee2e6;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            
+            --status-pending: #ffc107; /* Amarillo */
+            --status-due: #dc3545;     /* Rojo */
+            --status-paid: #28a745;    /* Verde */
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Contenedor Principal */
+        .main-container {
+            max-width: 1200px;
+            margin: auto;
+            display: grid;
+            gap: 20px;
+        }
+
+        /* Cabecera y Acciones */
+        header {
+            background-color: var(--container-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8em;
+            color: var(--primary-color);
+        }
+
+        .action-buttons button {
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-buttons button svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+
+        #add-new-btn { background-color: var(--primary-color); }
+        #add-new-btn:hover { background-color: var(--primary-hover); }
+        #export-btn { background-color: #1a73e8; }
+        #export-btn:hover { background-color: #1765c9; }
+        
+        /* Panel de Alertas */
+        #alerts-panel {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        #alerts-panel h3 { margin-top: 0; }
+        #alerts-panel ul { padding-left: 20px; margin-bottom: 0;}
+        #alerts-panel.hidden { display: none; }
+
+        /* Contenedor de Notas */
+        #notas-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        /* Tarjetas de Notas */
+        .nota-card {
+            background: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-left: 5px solid;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .nota-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px var(--shadow-color);
+        }
+        .nota-card.status-Pendiente { border-color: var(--status-pending); }
+        .nota-card.status-Vencida { border-color: var(--status-due); }
+        .nota-card.status-Pagada { border-color: var(--status-paid); opacity: 0.7; }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .card-header h3 { margin: 0; }
+        .status-tag {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: white;
+        }
+        .status-tag.Pendiente { background-color: var(--status-pending); }
+        .status-tag.Vencida { background-color: var(--status-due); }
+        .status-tag.Pagada { background-color: var(--status-paid); }
+        
+        .card-body p { margin: 5px 0; }
+        .card-body strong { color: var(--secondary-color); }
+        
+        .card-actions {
+            margin-top: auto;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .card-actions button {
+            background: none;
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+        .card-actions button:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        .card-actions button svg { width: 16px; height: 16px; }
+
+        /* Modal para agregar/editar notas */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        .modal-content {
+            background-color: var(--container-bg);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            animation: slideIn 0.3s;
+        }
+        .close-btn {
+            color: #aaa;
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-content h2 { margin-top: 0; }
+        .modal-form-group { margin-bottom: 15px; }
+        .modal-form-group label { display: block; margin-bottom: 5px; }
+        .modal-form-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+        }
+        .modal-form-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-form-buttons button {
+             padding: 10px 20px;
+             border-radius: 8px;
+             border: none;
+             cursor: pointer;
+        }
+        #save-btn { background-color: var(--primary-color); color: white; }
+        #cancel-btn { background-color: var(--secondary-color); color: white; }
+        
+        @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+        @keyframes slideIn { from {transform: translateY(-50px);} to {transform: translateY(0);} }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header>
+            <h1>Cuentas por Cobrar</h1>
+            <div class="action-buttons">
+                 <button id="export-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-1 13v4h-2v-4H8l4-4 4 4h-3zm3-4V3.5L18.5 9H13z"/></svg>
+                    Exportar a Excel
+                </button>
+                <button id="add-new-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Agregar Nota
+                </button>
+            </div>
+        </header>
+
+        <div id="alerts-panel" class="hidden">
+            <h3>Alertas de Vencimiento</h3>
+            <ul id="alerts-list"></ul>
+        </div>
+        
+        <main id="notas-container">
+            <!-- Las tarjetas de notas se insertarán aquí -->
+        </main>
+    </div>
+
+    <!-- Modal para agregar nueva nota -->
+    <div id="nota-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Nueva Nota de Crédito</h2>
+            <form id="nota-form">
+                <div class="modal-form-group">
+                    <label for="cliente-nombre">Nombre del Cliente</label>
+                    <input type="text" id="cliente-nombre" required>
+                </div>
+                <div class="modal-form-group">
+                    <label for="cliente-email">Email del Cliente</label>
+                    <input type="email" id="cliente-email" required>
+                </div>
+                 <div class="modal-form-group">
+                    <label for="cliente-telefono">Teléfono del Cliente (con código de país)</label>
+                    <input type="tel" id="cliente-telefono" placeholder="Ej: 521XXXXXXXXXX" required>
+                </div>
+                <div class="modal-form-group">
+                    <label for="numero-nota">Número de Nota/Factura</label>
+                    <input type="text" id="numero-nota" required>
+                </div>
+                <div class="modal-form-group">
+                    <label for="monto">Monto</label>
+                    <input type="number" id="monto" step="0.01" required>
+                </div>
+                <div class="modal-form-group">
+                    <label for="fecha-emision">Fecha de Emisión</label>
+                    <input type="date" id="fecha-emision" required>
+                </div>
+                 <div class="modal-form-group">
+                    <label for="dias-credito">Días de Crédito</label>
+                    <input type="number" id="dias-credito" min="0" required>
+                </div>
+                <div class="modal-form-buttons">
+                    <button type="button" id="cancel-btn">Cancelar</button>
+                    <button type="submit" id="save-btn">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script type="module">
+        // Importaciones de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- CONFIGURACIÓN DE FIREBASE ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // SEBE BORRAR const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const firebaseConfig = {
+  apiKey: "AIzaSyAE6uv72JoBDlgLDR-S_ycxLc0Y0Qi9Ozs",
+  authDomain: "cxc-1-369e3.firebaseapp.com",
+  projectId: "cxc-1-369e3",
+  storageBucket: "cxc-1-369e3.firebasestorage.app",
+  messagingSenderId: "843604814276",
+  appId: "1:843604814276:web:a8df888246352798bbdc91",
+  measurementId: "G-1H7EDLDE4G"
+};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // --- REFERENCIAS A ELEMENTOS DEL DOM ---
+        const modal = document.getElementById('nota-modal');
+        const addNewBtn = document.getElementById('add-new-btn');
+        const closeBtn = document.querySelector('.close-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const notaForm = document.getElementById('nota-form');
+        const notasContainer = document.getElementById('notas-container');
+        const exportBtn = document.getElementById('export-btn');
+        let allNotasData = []; // Para la exportación
+
+        // --- MANEJO DEL MODAL (UI-only) ---
+        const openModal = () => modal.style.display = 'block';
+        const closeModal = () => {
+            modal.style.display = 'none';
+            notaForm.reset();
+        };
+        addNewBtn.onclick = openModal;
+        closeBtn.onclick = closeModal;
+        cancelBtn.onclick = closeModal;
+        window.onclick = (event) => {
+            if (event.target == modal) closeModal();
+        };
+
+        // --- FUNCIONES AUXILIARES ---
+        function checkAndRenderAlerts(docs, notasCollection) {
+            const alertsList = document.getElementById('alerts-list');
+            const alertsPanel = document.getElementById('alerts-panel');
+            alertsList.innerHTML = '';
+            let alertCount = 0;
+
+            docs.forEach(docSnap => {
+                const nota = docSnap.data();
+                if (nota.estado === 'Pagada') return;
+
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                const fechaVencimiento = new Date(nota.fechaVencimiento + 'T00:00:00');
+                
+                const diffTime = fechaVencimiento - hoy;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0 && nota.estado !== 'Vencida') {
+                    updateDoc(doc(db, notasCollection.path, docSnap.id), { estado: 'Vencida' });
+                }
+
+                if (diffDays >= 0 && diffDays <= 7) {
+                    const li = document.createElement('li');
+                    li.textContent = `La nota #${nota.numeroNota} para ${nota.clienteNombre} vence en ${diffDays} día(s).`;
+                    alertsList.appendChild(li);
+                    alertCount++;
+                } else if (diffDays < 0) {
+                    const li = document.createElement('li');
+                    li.textContent = `¡ALERTA! La nota #${nota.numeroNota} para ${nota.clienteNombre} está vencida.`;
+                    li.style.color = 'var(--status-due)';
+                    li.style.fontWeight = 'bold';
+                    alertsList.appendChild(li);
+                    alertCount++;
+                }
+            });
+
+            alertsPanel.classList.toggle('hidden', alertCount === 0);
+        }
+
+        function renderNotaCard(id, data, notasCollection) {
+            const card = document.createElement('div');
+            card.className = `nota-card status-${data.estado}`;
+            const formattedMonto = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(data.monto);
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <h3>${data.clienteNombre}</h3>
+                    <span class="status-tag ${data.estado}">${data.estado}</span>
+                </div>
+                <div class="card-body">
+                    <p><strong>Nota #:</strong> ${data.numeroNota}</p>
+                    <p><strong>Monto:</strong> ${formattedMonto}</p>
+                    <p><strong>Vencimiento:</strong> ${data.fechaVencimiento}</p>
+                </div>
+                <div class="card-actions"></div>
+            `;
+            
+            const actionsContainer = card.querySelector('.card-actions');
+
+            if (data.estado !== 'Pagada') {
+                const paidBtn = createActionButton('check', 'Marcar Pagada');
+                paidBtn.onclick = () => updateDoc(doc(db, notasCollection.path, id), { estado: 'Pagada' });
+                actionsContainer.appendChild(paidBtn);
+
+                const emailBtn = createActionButton('email', 'Email');
+                emailBtn.onclick = () => sendEmail(data);
+                actionsContainer.appendChild(emailBtn);
+
+                const whatsappBtn = createActionButton('whatsapp', 'WhatsApp');
+                whatsappBtn.onclick = () => sendWhatsApp(data);
+                actionsContainer.appendChild(whatsappBtn);
+            }
+           
+            const deleteBtn = createActionButton('delete', 'Eliminar');
+            deleteBtn.onclick = () => {
+                if (confirm('¿Estás seguro de que quieres eliminar esta nota?')) {
+                    deleteDoc(doc(db, notasCollection.path, id));
+                }
+            };
+            actionsContainer.appendChild(deleteBtn);
+            
+            notasContainer.appendChild(card);
+        }
+
+        function createActionButton(type, text) {
+            const btn = document.createElement('button');
+            const icons = {
+                check: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
+                email: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+                whatsapp: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.586-1.457l-6.354 1.654zm6.474-3.543c1.554.945 3.328 1.448 5.122 1.448 5.421 0 9.811-4.39 9.811-9.811s-4.39-9.81-9.811-9.81-9.81 4.39-9.81 9.81c0 1.838.515 3.592 1.438 5.166l-1.29 4.721 4.833-1.274z"/></svg>',
+                delete: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+            };
+            btn.innerHTML = `${icons[type] || ''} ${text}`;
+            return btn;
+        }
+
+        function sendEmail(data) {
+            const subject = `Recordatorio de Pago - Nota #${data.numeroNota}`;
+            let body = `Estimado(a) ${data.clienteNombre},\n\nLe escribimos para recordarle amablemente sobre su pago pendiente para la nota/factura #${data.numeroNota} por un monto de ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(data.monto)}.\n\nLa fecha de vencimiento es ${data.fechaVencimiento}.\n\nAgradecemos su pronta atención a este asunto.\n\nSaludos cordiales.`;
+            window.location.href = `mailto:${data.clienteEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        function sendWhatsApp(data) {
+            let message = `Hola ${data.clienteNombre}, te recordamos sobre tu nota #${data.numeroNota} por ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(data.monto)}, que vence el ${data.fechaVencimiento}. ¡Gracias!`;
+            const phone = data.clienteTelefono.replace(/[^0-9]/g, '');
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+
+        // --- FUNCIÓN PRINCIPAL DE INICIO ---
+        async function main() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+               // const notasCollection = collection(db, `/artifacts/${appId}/public/data/cuentasPorCobrar`);
+                const notasCollection = collection(db, "cuentasPorCobrar");
+                
+                // Listener para guardar notas
+                notaForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const fechaEmision = new Date(document.getElementById('fecha-emision').value + 'T00:00:00');
+                    const diasCredito = parseInt(document.getElementById('dias-credito').value);
+                    const fechaVencimiento = new Date(fechaEmision);
+                    fechaVencimiento.setDate(fechaEmision.getDate() + diasCredito);
+                    
+                    const nuevaNota = {
+                        clienteNombre: document.getElementById('cliente-nombre').value,
+                        clienteEmail: document.getElementById('cliente-email').value,
+                        clienteTelefono: document.getElementById('cliente-telefono').value,
+                        numeroNota: document.getElementById('numero-nota').value,
+                        monto: parseFloat(document.getElementById('monto').value),
+                        fechaEmision: fechaEmision.toISOString().split('T')[0],
+                        diasCredito: diasCredito,
+                        fechaVencimiento: fechaVencimiento.toISOString().split('T')[0],
+                        estado: 'Pendiente',
+                        createdAt: new Date()
+                    };
+                    try {
+                        await addDoc(notasCollection, nuevaNota);
+                        closeModal();
+                    } catch (error) {
+                        console.error("Error al guardar la nota:", error);
+                        alert("No se pudo guardar la nota.");
+                    }
+                });
+
+                // Listener de onSnapshot para datos en tiempo real
+                const q = query(notasCollection, orderBy("createdAt", "desc"));
+                onSnapshot(q, (snapshot) => {
+                    allNotasData = [];
+                    notasContainer.innerHTML = '';
+                    const docs = snapshot.docs;
+                    
+                    checkAndRenderAlerts(docs, notasCollection);
+
+                    docs.forEach(docSnap => {
+                        const notaData = docSnap.data();
+                        allNotasData.push({id: docSnap.id, ...notaData});
+                        renderNotaCard(docSnap.id, notaData, notasCollection);
+                    });
+                }, (error) => {
+                    console.error("Error en el listener de Firestore:", error);
+                });
+
+            } catch (error) {
+                console.error("Error en la autenticación o configuración:", error);
+            }
+        }
+        
+        main();
+
+        // Listener de exportación
+        exportBtn.addEventListener('click', () => {
+            if (allNotasData.length === 0) {
+                alert("No hay notas para exportar.");
+                return;
+            }
+            const headers = ["ID", "Cliente", "Email", "Teléfono", "Nota #", "Monto", "Fecha Emisión", "Días Crédito", "Fecha Vencimiento", "Estado"];
+            const csvRows = [headers.join(',')];
+            for (const nota of allNotasData) {
+                const values = [
+                    nota.id, `"${nota.clienteNombre}"`, nota.clienteEmail, nota.clienteTelefono,
+                    nota.numeroNota, nota.monto, nota.fechaEmision, nota.diasCredito,
+                    nota.fechaVencimiento, nota.estado
+                ];
+                csvRows.push(values.join(','));
+            }
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'cuentas_por_cobrar.csv');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+    </script>
+</body>
+</html>
